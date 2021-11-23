@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -68,16 +69,17 @@ marks = pd.DataFrame(landmarks)
 
 Ames_center = to_mercator(42.034534, -93.620369)
 
+filepath = os.getcwd()
 #--------------------------------------------------------------------------------------
 # Navigation
-st.sidebar.image("assets/APP Logo.jpg", use_column_width=True) 
+st.sidebar.image(filepath+'/assets/APP Logo.jpg', use_column_width=True) 
 page = st.sidebar.radio("Navigation", ["Map of Ames", "P2", "P3"]) 
 
 # APP Page1: Map of Ames, IA
 if page == "Map of Ames":
     @st.cache
     def load_data():
-        data = pd.read_csv('assets/APP_data.csv', index_col='PID')
+        data = pd.read_csv(filepath+'/assets/APP_data.csv', index_col='PID')
         return data
 
     data_load_state = st.text('Loading data...')
