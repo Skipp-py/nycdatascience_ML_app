@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 from bokeh.plotting import figure, show
-from bokeh.tile_providers import get_provider, CARTODBPOSITRON_RETINA
+from bokeh.tile_providers import get_provider, CARTODBPOSITRON_RETINA, STAMEN_TONER, STAMEN_TERRAIN_RETINA
 from bokeh.models import HoverTool, FreehandDrawTool, BoxEditTool, ColumnDataSource, ColorBar
 from bokeh.palettes import Plasma10
 from bokeh.transform import linear_cmap
@@ -22,8 +22,8 @@ st.markdown(
         padding-bottom: 2rem;
     }}
     .reportview-container .main {{
-        color: #FFFFFF;
-        background-color: #042A37;
+        color: #000000;
+        background-color: #7A8891;
     }}
     .reportview-container .css-ng1t4o {{
         color: #FFFFFF;
@@ -86,7 +86,7 @@ if page == "Map of Ames":
     map_data = load_data()
 
     # Misc Map Settings
-    background = get_provider(CARTODBPOSITRON_RETINA)
+    background = get_provider(STAMEN_TERRAIN_RETINA)
     x_zoom = 7000
     y_zoom = 5000
 
@@ -126,9 +126,9 @@ if page == "Map of Ames":
 
         # Dots for Houses
         fig.circle(x="x_merc", y="y_merc",
-                size=5,
+                size=7,
                 fill_color=mycolors, line_color=mycolors,
-                fill_alpha=0.6,
+                fill_alpha=0.7,
                 name='House',
                 source=map_data)
         
@@ -137,9 +137,9 @@ if page == "Map of Ames":
         my_hover = HoverTool(names=['landmark'])
         my_hover.tooltips = [('', '@landmarks')]
         fig.circle(x="x_merc", y="y_merc",
-                size=12,
+                size=18,
                 fill_color="dodgerblue", line_color='dodgerblue',
-                fill_alpha=0.3,
+                fill_alpha=0.4,
                 name='landmark',
                 source=marks)
         fig.add_tools(my_hover)
