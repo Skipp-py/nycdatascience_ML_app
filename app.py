@@ -72,7 +72,7 @@ Ames_center = to_mercator(42.034534, -93.620369)
 filepath = os.getcwd()
 #--------------------------------------------------------------------------------------
 # Navigation
-st.sidebar.image(filepath+'/assets/APP Logo.jpg', use_column_width=True) 
+st.sidebar.image('https://raw.githubusercontent.com/dnie44/nycdatascience_ML_app/master/assets/App%20Logo.jpg', use_column_width=True) 
 page = st.sidebar.radio("Navigation", ["Map of Ames", "P2", "P3"]) 
 
 # APP Page1: Map of Ames, IA
