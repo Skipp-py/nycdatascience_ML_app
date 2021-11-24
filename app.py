@@ -72,8 +72,8 @@ Ames_center = to_mercator(42.034534, -93.620369)
 filepath = os.getcwd()
 #--------------------------------------------------------------------------------------
 # Navigation
-st.sidebar.image('https://raw.githubusercontent.com/dnie44/nycdatascience_ML_app/master/assets/App%20Logo.jpg', use_column_width=True) 
-page = st.sidebar.radio("Navigation", ["Map of Ames", "P2", "P3"]) 
+st.sidebar.image(filepath+'/assets/App_Logo.jpg', use_column_width=True) 
+page = st.sidebar.radio("Navigation", ["Map of Ames", "P2", "P3", "Authors"]) 
 
 # APP Page1: Map of Ames, IA
 if page == "Map of Ames":
@@ -159,3 +159,10 @@ elif page == "P3":
     # Display details of page 2
     st.title('Page 3')
 
+elif page == "Authors":
+    # Display details of page 2
+    st.title('About the Authors')
+    st.subheader('Daniel Nie')
+    st.subheader('David Kressley')
+    st.subheader('Karl Lundquist')
+    st.subheader('Tony Pennoyer')
