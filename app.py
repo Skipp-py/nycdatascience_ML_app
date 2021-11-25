@@ -74,10 +74,13 @@ marks = pd.DataFrame(landmarks)
 Ames_center = to_mercator(42.034534, -93.620369)
 
 @st.cache
-def load_data():
-    data = pd.read_csv(filepath+'/assets/APP_data_all.csv', index_col='PID')
+def load_data(n):
+    if n == 'map_data' :
+        data = pd.read_csv(filepath+'/assets/APP_data_all.csv', index_col='PID')
+    elif n == 'house_data' :
+        data = pd.read_csv(filepath+'/assets/cleaned_data.csv', index_col='PID')
     return data
-all_data = load_data()
+all_data = load_data('map_data')
 
 def plot_stacked(s_data, overlay=None, all_data=all_data):
     sec_order=['NW','SO','WE','SE','NO','DT']
@@ -208,19 +211,15 @@ elif page == "City Sectors":
 elif page == "P3":
     # Display details of page 2
     st.title('Feature selection')
-    def load_data():
-        data = pd.read_csv(filepath+'/assets/cleaned_data.csv', index_col='PID')
-        return data
 
     data_load_state = st.text('Loading data...')
-    graph_data = load_data()
+    graph_data = load_data('house_data')
     selected = st.selectbox(
          'Choose a feature:',
-         ('Fireplaces', 'FireplaceQu', 'GarageCars'))
+         ('Fireplaces', 'FireplaceQu', 'GarageCars', 'CentralAir', 'HeatingQC', 'OverallQual',))
     fig = px.scatter(graph_data,x='GrLivArea',y='SalePrice',facet_col=selected,color=selected,trendline='ols')
     st.plotly_chart(fig)
-    st.write('You selected:', selected)
-
+  
 elif page == "P4":
     # Display details of page 2
     st.title('Page 4')
