@@ -75,25 +75,36 @@ marks = pd.DataFrame(landmarks)
 Ames_center = to_mercator(42.034534, -93.620369)
 
 @st.cache
-def load_data(n):
-    if n == 'map_data' :
+def load_data(what_data):
+    if what_data == 'map_data' :
         data = pd.read_csv(filepath+'/assets/APP_data_all.csv', index_col='PID')
-    elif n == 'house_data' :
+    elif what_data == 'house_data' :
         data = pd.read_csv(filepath+'/assets/cleaned_data.csv', index_col='PID')
+    elif what_data == 'pickle_data' :
+        data = pd.read_csv(filepath+'/assets/pickle_base.csv')
     return data
-all_data = load_data('map_data')
+map_data = load_data('map_data')
 
-def plot_stacked(s_data, overlay=None, all_data=all_data):
+def plot_stacked(s_data, overlay=None, m_data=map_data):
     sec_order=['NW','SO','WE','SE','NO','DT']
     fig, ax1 = plt.subplots()
     s_data.loc[:,sec_order].T.plot(ax=ax1, kind='bar', rot=0, width=0.8,
                             stacked=True, figsize=(10,6)).legend(bbox_to_anchor=(1.051, 1.0))
     ax1.set_ylabel('Proportion')
     ax2 = ax1.twinx()
-    sns.stripplot(ax=ax2, x='Sector', y=overlay, data=all_data, order=sec_order, color='0.6', edgecolor='k', linewidth=0.5)
+    sns.stripplot(ax=ax2, x='Sector', y=overlay, data=m_data, order=sec_order, color='0.6', edgecolor='k', linewidth=0.5)
     return fig
 
 pkl_model = pickle.load(open(filepath+'/assets/APP_model.pkl', 'rb'))
+
+def num_format(num):
+    # converts any int/float to human readable string with thousandth commas
+    new_num = ''
+    for idx, c in enumerate(str(np.int64(num))[::-1]):
+        if (idx+1)%4 == 0:
+            new_num += ','
+        new_num += c
+    return new_num[::-1]
 
 #=======================================================================================================
 # Navigation
@@ -128,19 +139,19 @@ if page == "Map of Ames":
         def bok_layer(map_choice = map_choice, fig = bok_fig()):
             # Set map data, hover tool, and color palette
             if map_choice == 'SalePrice':
-                mycolors = linear_cmap(field_name='SalePrice', palette=Plasma10[::-1], low=min(all_data.SalePrice) ,high=max(all_data.SalePrice))
+                mycolors = linear_cmap(field_name='SalePrice', palette=Plasma10[::-1], low=min(map_data.SalePrice) ,high=max(map_data.SalePrice))
                 color_bar = ColorBar(color_mapper=mycolors['transform'], width=8,  location=(0,0),title="Price $(thousands)")
                 fig.add_layout(color_bar, 'right')
                 my_hover = HoverTool(names=['House'])
                 my_hover.tooltips = [('Price', '@SalePrice')]
                 fig.add_tools(my_hover)
             elif map_choice == 'Neighborhood':
-                mycolors = linear_cmap(field_name='le_Neighbor', palette=Spectral11[::-1], low=min(all_data.le_Neighbor) ,high=max(all_data.le_Neighbor))
+                mycolors = linear_cmap(field_name='le_Neighbor', palette=Spectral11[::-1], low=min(map_data.le_Neighbor) ,high=max(map_data.le_Neighbor))
                 my_hover = HoverTool(names=['House'])
                 my_hover.tooltips = [('', '@Neighborhood')]
                 fig.add_tools(my_hover)
             else:
-                mycolors = linear_cmap(field_name='le_Sector', palette=Spectral11[::-1], low=min(all_data.le_Sector) ,high=max(all_data.le_Sector))    
+                mycolors = linear_cmap(field_name='le_Sector', palette=Spectral11[::-1], low=min(map_data.le_Sector) ,high=max(map_data.le_Sector))    
                 my_hover = HoverTool(names=['House'])
                 my_hover.tooltips = [('', '@Neighborhood')]
                 fig.add_tools(my_hover)
@@ -151,7 +162,7 @@ if page == "Map of Ames":
                     fill_color=mycolors, line_color='black',
                     fill_alpha=0.7,
                     name='House',
-                    source=all_data)
+                    source=map_data)
             
 
             # Big Dots for Landmarks, with Hover interactivity
@@ -191,7 +202,7 @@ elif page == "City Sectors":
         sns.set_palette('gist_earth')
 
         # percentage of houseClass in each Sector of city
-        stack_data = all_data.groupby(['Sector'])['MSSubClass'].value_counts(normalize=True).to_frame()
+        stack_data = map_data.groupby(['Sector'])['MSSubClass'].value_counts(normalize=True).to_frame()
         stack_data.rename(columns={'MSSubClass':'HouseType'}, inplace=True)
         stack_data.reset_index(inplace=True)
         stack_data = stack_data.pivot(index='MSSubClass',columns='Sector', values='HouseType')
@@ -234,14 +245,47 @@ elif page == "P4":
 elif page == "MODEL":
     with st.container():
         st.title('Renovation Model Test')
-        col1, col2, col3 = st.columns([1, 1, 1]) #Set Columns
+        col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([2,1,2,2,2,2]) #Set Columns
+        col_main.markdown('#### ***Select:***')
+        col_main.markdown('##### Location & Type of House')
+        col_b.markdown('#### ** * **')
+        col_b.markdown('##### Baseline House')
+        col_r.markdown('#### ** * **')
+        col_r.markdown('##### Renovation')
+    
+    with st.container():
+        col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([2,1,2,2,2,2]) #Set Columns
+
         #------Set Base Prediction House---------
-        sec_select = col1.selectbox('Select Sector',['Downtown','South','West','South East','North','North West'])
+        # Location & Type of House
+        sec_select = col_main.selectbox('Select Sector',['Downtown','South','West','South East','North','North West'])
         sec_mapper = {'Downtown':'DT','South':'SO','West':'WE','South East':'SE','North':'NO','North West':'NW'}
         model_sec = sec_mapper[sec_select]
+        model_neib = col_main.radio('Select Neighborhood',map_data.loc[map_data.Sector==model_sec]['Neighborhood'].unique())
+        model_htype = col_main.radio('Select House Style',map_data.loc[map_data.Neighborhood==model_neib]['MSSubClass'].unique())
 
-        model_neib = col2.radio('Select Neighborhood',all_data.loc[all_data.Sector==model_sec]['Neighborhood'].unique())
+        # Base House Details
+        base_pool = col_b.radio('Pool',['No', 'Yes'])
 
+        # Base House MODEL PRICE
+        pkl_basehouse = load_data('pickle_data')
+        pkl_baseprice = np.floor(10**pkl_model.predict(pkl_basehouse)[0])
+        col_bpx.subheader(f'**${num_format(pkl_baseprice)}**')
+        col_bpx.caption('Baseline House Price')
+
+        # RENO House Details
+        pkl_renohouse = pkl_basehouse.copy()
+        reno_pool = col_r.radio('Build Pool',['No', 'Yes'])
+
+        pkl_renohouse['HasPool'] = 0 if reno_pool == 'No' else 1
+
+        # RENOV House Details
+        pkl_renoprice = np.floor(10**pkl_model.predict(pkl_renohouse)[0])
+        col_rpx.subheader(f'**${num_format(pkl_renoprice)}**')
+        col_rpx.caption('Renovated House Price')
+
+        col_rpx.markdown(f'### **${num_format(pkl_renoprice - pkl_baseprice)}**')
+        col_rpx.caption('Difference')
 
 #------------------------------------------------------------------------------------------------------
 # Page 5 About Page
