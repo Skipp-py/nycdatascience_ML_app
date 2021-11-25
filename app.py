@@ -3,10 +3,12 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+import matplotlib.pyplot as plt
+import seaborn as sns
 from bokeh.plotting import figure, show
-from bokeh.tile_providers import get_provider, CARTODBPOSITRON_RETINA, STAMEN_TONER, STAMEN_TERRAIN_RETINA
+from bokeh.tile_providers import get_provider, CARTODBPOSITRON_RETINA, STAMEN_TONER, STAMEN_TERRAIN
 from bokeh.models import HoverTool, FreehandDrawTool, BoxEditTool, ColumnDataSource, ColorBar
-from bokeh.palettes import Plasma10
+from bokeh.palettes import Plasma10, Spectral11
 from bokeh.transform import linear_cmap
 
 #------------------------------------------------------------------------------------------------
@@ -23,7 +25,7 @@ st.markdown(
     }}
     .reportview-container .main {{
         color: #000000;
-        background-color: #7A8891;
+        background-color: #042A37;
     }}
     .reportview-container .css-ng1t4o {{
         color: #FFFFFF;
@@ -37,15 +39,24 @@ st.markdown(
     )
 
 #------------------------------------------------------------------------------------------------
-# Define Functions
+# Define Functions and Global Variables
+filepath = os.getcwd()
+
 def to_mercator(lat, lon):
-    
     r_major = 6378137.000
     x = r_major * np.radians(lon)
     scale = x/lon
     y = 180.0/np.pi * np.log(np.tan(np.pi/4.0 + 
         lat * (np.pi/180.0)/2.0)) * scale
     return (x, y)
+
+def plot_stacked(data):
+    sec_order=['NW','SO','WE','SE','NO','DT']
+    fig, ax1 = plt.subplots()
+    data.loc[:,sec_order].T.plot(ax=ax1, kind='bar', rot=0, width=0.8,
+                            stacked=True, figsize=(10,6)).legend(bbox_to_anchor=(1.051, 1.0));
+    ax1.set_ylabel('Proportion')
+    return fig
 
 landmarks = {'landmarks':['Iowa State University',
                           'Municipal Airport',
@@ -69,87 +80,119 @@ marks = pd.DataFrame(landmarks)
 
 Ames_center = to_mercator(42.034534, -93.620369)
 
-filepath = os.getcwd()
+@st.cache
+def load_data():
+    data = pd.read_csv(filepath+'/assets/APP_data_all.csv', index_col='PID')
+    return data
+map_data = load_data()
 #--------------------------------------------------------------------------------------
 # Navigation
 st.sidebar.image(filepath+'/assets/App_Logo.jpg', use_column_width=True) 
-page = st.sidebar.radio("Navigation", ["Map of Ames", "P2", "P3", "Authors"]) 
+page = st.sidebar.radio("Navigation", ["Map of Ames", "P2", "P3", "Collaborators"]) 
 
 # APP Page1: Map of Ames, IA
 if page == "Map of Ames":
-    @st.cache
-    def load_data():
-        data = pd.read_csv(filepath+'/assets/APP_data.csv', index_col='PID')
-        return data
+    with st.container():
+        st.title('EDA with Location Data')
+        col1, col2 = st.columns([3, 1]) #Set Columns
 
-    data_load_state = st.text('Loading data...')
-    map_data = load_data()
+        # Misc Map Settings
+        background = get_provider(STAMEN_TERRAIN)
 
-    # Misc Map Settings
-    background = get_provider(STAMEN_TERRAIN_RETINA)
-    x_zoom = 7000
-    y_zoom = 5000
+        # Sidebar Radio Button
+        # For selecting map plot
+        map_choice = col2.radio("Choose Map:", ('SalePrice', 'Neighborhood', 'Sector'))
 
-    st.title('Initial EDA with Location Data')
+        # Mapper Function
+        def bok_fig():
+            # Base Map Layer
+            fig = figure(plot_width=940, plot_height=700,
+                        x_range=(Ames_center[0]-8000, Ames_center[0]+3000), 
+                        y_range=(Ames_center[1]-8000, Ames_center[1]+5000),
+                        x_axis_type="mercator", y_axis_type="mercator",
+                        title="Ames Iowa Housing Map")
+            fig.add_tile(background)
+            return fig
 
-    # Sidebar Radio Button
-    # For selecting map plot
-    map_choice = st.sidebar.radio("Choose Map:", ('SalePrice', 'Neighborhood', 'Sector'))
+        def bok_layer(map_choice = map_choice, fig = bok_fig()):
+            # Set map data, hover tool, and color palette
+            if map_choice == 'SalePrice':
+                mycolors = linear_cmap(field_name='SalePrice', palette=Plasma10[::-1], low=min(map_data.SalePrice) ,high=max(map_data.SalePrice))
+                color_bar = ColorBar(color_mapper=mycolors['transform'], width=8,  location=(0,0),title="Price $(thousands)")
+                fig.add_layout(color_bar, 'right')
+                my_hover = HoverTool(names=['House'])
+                my_hover.tooltips = [('Price', '@SalePrice')]
+                fig.add_tools(my_hover)
+            elif map_choice == 'Neighborhood':
+                mycolors = linear_cmap(field_name='le_Neighbor', palette=Spectral11[::-1], low=min(map_data.le_Neighbor) ,high=max(map_data.le_Neighbor))
+                my_hover = HoverTool(names=['House'])
+                my_hover.tooltips = [('', '@Neighborhood')]
+                fig.add_tools(my_hover)
+            else:
+                mycolors = linear_cmap(field_name='le_Sector', palette=Spectral11[::-1], low=min(map_data.le_Sector) ,high=max(map_data.le_Sector))    
+                my_hover = HoverTool(names=['House'])
+                my_hover.tooltips = [('', '@Neighborhood')]
+                fig.add_tools(my_hover)
 
-    # Mapper Function
-    def bok_fig():
-        # Base Map Layer
-        fig = figure(plot_width=1000, plot_height=800,
-                    x_range=(Ames_center[0]-x_zoom, Ames_center[0]+y_zoom), 
-                    y_range=(Ames_center[1]-x_zoom, Ames_center[1]+y_zoom),
-                    x_axis_type="mercator", y_axis_type="mercator",
-                    title="Ames Iowa Housing Map")
-        fig.add_tile(background)
-        return fig
+            # Dots for Houses
+            fig.circle(x="x_merc", y="y_merc",
+                    size=7,
+                    fill_color=mycolors, line_color='black',
+                    fill_alpha=0.7,
+                    name='House',
+                    source=map_data)
+            
 
-    def bok_layer(map_choice = map_choice, fig = bok_fig()):
-        # Set map data, hover tool, and color palette
-        if map_choice == 'SalePrice':
-            mycolors = linear_cmap(field_name='SalePrice', palette=Plasma10[::-1], low=min(map_data.SalePrice) ,high=max(map_data.SalePrice))
-            color_bar = ColorBar(color_mapper=mycolors['transform'], width=8,  location=(0,0),title="Price $(thousands)")
-            fig.add_layout(color_bar, 'right')
-            my_hover = HoverTool(names=['House'])
-            my_hover.tooltips = [('Price', '@SalePrice')]
+            # Big Dots for Landmarks, with Hover interactivity
+            my_hover = HoverTool(names=['landmark'])
+            my_hover.tooltips = [('', '@landmarks')]
+            fig.circle(x="x_merc", y="y_merc",
+                    size=18,
+                    fill_color="dodgerblue", line_color='dodgerblue',
+                    fill_alpha=0.4,
+                    name='landmark',
+                    source=marks)
             fig.add_tools(my_hover)
-        elif map_choice == 'Neighborhood':
-            mycolors = linear_cmap(field_name='le_Neighbor', palette=Plasma10[::-1], low=min(map_data.le_Neighbor) ,high=max(map_data.le_Neighbor))
-            my_hover = HoverTool(names=['House'])
-            my_hover.tooltips = [('', '@Neighborhood')]
-            fig.add_tools(my_hover)
-        else:
-            mycolors = linear_cmap(field_name='le_Sector', palette=Plasma10[::-1], low=min(map_data.le_Sector) ,high=max(map_data.le_Sector))    
 
-        # Dots for Houses
-        fig.circle(x="x_merc", y="y_merc",
-                size=7,
-                fill_color=mycolors, line_color=mycolors,
-                fill_alpha=0.7,
-                name='House',
-                source=map_data)
-        
+            return fig
 
-        # Big Dots for Landmarks, with Hover interactivity
-        my_hover = HoverTool(names=['landmark'])
-        my_hover.tooltips = [('', '@landmarks')]
-        fig.circle(x="x_merc", y="y_merc",
-                size=18,
-                fill_color="dodgerblue", line_color='dodgerblue',
-                fill_alpha=0.4,
-                name='landmark',
-                source=marks)
-        fig.add_tools(my_hover)
+        col1.subheader(f'Map data: {map_choice}')
+        col1.bokeh_chart(bok_layer())
 
-        return fig
+        with col1.expander("Sidenote on Distance from Walmart vs YearBuilt"):
+            st.write("""
+                Distance from Walmart correlates with YearBuilt? (R2 = 0.7)
+            """)
+            st.image(filepath+'/assets/Walmart_YrBuilt.png')
 
-    st.subheader(f'Map data: {map_choice}')
-    st.bokeh_chart(bok_layer())
+        with col1.expander("Ames Visitor Map"):
+            st.write("""
+                City Sectors from The Ames Convention & Visitors Bureau
+            """)
+            st.image(filepath+'/assets/Ames.png')
 
-    data_load_state.text("Data loading Done! (st.cache)")
+    #---------------------------------------------
+    # Section 2
+    with st.container():
+        st.title('EDA with City Sector')
+        col1, col2 = st.columns([3, 1]) #Set Columns
+        sns.set_palette('gist_earth')
+
+        # percentage of houseClass in each Sector of city
+        stack_data = map_data.groupby(['Sector'])['MSSubClass'].value_counts(normalize=True).to_frame()
+        stack_data.rename(columns={'MSSubClass':'HouseType'}, inplace=True)
+        stack_data.reset_index(inplace=True)
+        stack_data = stack_data.pivot(index='MSSubClass',columns='Sector', values='HouseType')
+
+        test = col2.radio("Overlay:", ('SalePrice', 'YearBuilt', 'OverallQual'))
+
+        col1.pyplot(plot_stacked(stack_data))
+
+        with col1.expander("HouseType Comparisons"):
+            st.write("""
+                
+            """)
+            st.image(filepath+'/assets/HouseType.png')
 
 elif page == "P2":
     # Display details of page 2
@@ -159,9 +202,9 @@ elif page == "P3":
     # Display details of page 2
     st.title('Page 3')
 
-elif page == "Authors":
+elif page == "Collaborators":
     # Display details of page 2
-    st.title('About the Authors')
+    st.title('Team Members')
     st.subheader('Daniel Nie')
     st.subheader('David Kressley')
     st.subheader('Karl Lundquist')
