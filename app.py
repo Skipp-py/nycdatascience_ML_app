@@ -11,7 +11,7 @@ from bokeh.models import HoverTool, FreehandDrawTool, BoxEditTool, ColumnDataSou
 from bokeh.palettes import Plasma10, Spectral11
 from bokeh.transform import linear_cmap
 
-#------------------------------------------------------------------------------------------------
+#=======================================================================================================
 # App CSS theme-ing
 st.markdown(
         f"""
@@ -24,7 +24,7 @@ st.markdown(
         padding-bottom: 2rem;
     }}
     .reportview-container .main {{
-        color: #000000;
+        color: #FFFFFF;
         background-color: #042A37;
     }}
     .reportview-container .css-ng1t4o {{
@@ -38,7 +38,7 @@ st.markdown(
         unsafe_allow_html=True,
     )
 
-#------------------------------------------------------------------------------------------------
+#=======================================================================================================
 # Define Functions and Global Variables
 filepath = os.getcwd()
 
@@ -49,14 +49,6 @@ def to_mercator(lat, lon):
     y = 180.0/np.pi * np.log(np.tan(np.pi/4.0 + 
         lat * (np.pi/180.0)/2.0)) * scale
     return (x, y)
-
-def plot_stacked(data):
-    sec_order=['NW','SO','WE','SE','NO','DT']
-    fig, ax1 = plt.subplots()
-    data.loc[:,sec_order].T.plot(ax=ax1, kind='bar', rot=0, width=0.8,
-                            stacked=True, figsize=(10,6)).legend(bbox_to_anchor=(1.051, 1.0));
-    ax1.set_ylabel('Proportion')
-    return fig
 
 landmarks = {'landmarks':['Iowa State University',
                           'Municipal Airport',
@@ -84,16 +76,28 @@ Ames_center = to_mercator(42.034534, -93.620369)
 def load_data():
     data = pd.read_csv(filepath+'/assets/APP_data_all.csv', index_col='PID')
     return data
-map_data = load_data()
-#--------------------------------------------------------------------------------------
+all_data = load_data()
+
+def plot_stacked(s_data, overlay=None, all_data=all_data):
+    sec_order=['NW','SO','WE','SE','NO','DT']
+    fig, ax1 = plt.subplots()
+    s_data.loc[:,sec_order].T.plot(ax=ax1, kind='bar', rot=0, width=0.8,
+                            stacked=True, figsize=(10,6)).legend(bbox_to_anchor=(1.051, 1.0))
+    ax1.set_ylabel('Proportion')
+    ax2 = ax1.twinx()
+    sns.stripplot(ax=ax2, x='Sector', y=overlay, data=all_data, order=sec_order, color='0.6', edgecolor='k', linewidth=0.5)
+    return fig
+
+#=======================================================================================================
 # Navigation
 st.sidebar.image(filepath+'/assets/App_Logo.jpg', use_column_width=True) 
-page = st.sidebar.radio("Navigation", ["Map of Ames", "P2", "P3", "Collaborators"]) 
+page = st.sidebar.radio("Navigation", ["Map of Ames", "City Sectors", "P3", "P4", "P5", "Collaborators"]) 
 
-# APP Page1: Map of Ames, IA
+#------------------------------------------------------------------------------------------------------
+# Page1: Map of Ames, IA
 if page == "Map of Ames":
     with st.container():
-        st.title('EDA with Location Data')
+        st.title('Map of Ames')
         col1, col2 = st.columns([3, 1]) #Set Columns
 
         # Misc Map Settings
@@ -117,19 +121,19 @@ if page == "Map of Ames":
         def bok_layer(map_choice = map_choice, fig = bok_fig()):
             # Set map data, hover tool, and color palette
             if map_choice == 'SalePrice':
-                mycolors = linear_cmap(field_name='SalePrice', palette=Plasma10[::-1], low=min(map_data.SalePrice) ,high=max(map_data.SalePrice))
+                mycolors = linear_cmap(field_name='SalePrice', palette=Plasma10[::-1], low=min(all_data.SalePrice) ,high=max(all_data.SalePrice))
                 color_bar = ColorBar(color_mapper=mycolors['transform'], width=8,  location=(0,0),title="Price $(thousands)")
                 fig.add_layout(color_bar, 'right')
                 my_hover = HoverTool(names=['House'])
                 my_hover.tooltips = [('Price', '@SalePrice')]
                 fig.add_tools(my_hover)
             elif map_choice == 'Neighborhood':
-                mycolors = linear_cmap(field_name='le_Neighbor', palette=Spectral11[::-1], low=min(map_data.le_Neighbor) ,high=max(map_data.le_Neighbor))
+                mycolors = linear_cmap(field_name='le_Neighbor', palette=Spectral11[::-1], low=min(all_data.le_Neighbor) ,high=max(all_data.le_Neighbor))
                 my_hover = HoverTool(names=['House'])
                 my_hover.tooltips = [('', '@Neighborhood')]
                 fig.add_tools(my_hover)
             else:
-                mycolors = linear_cmap(field_name='le_Sector', palette=Spectral11[::-1], low=min(map_data.le_Sector) ,high=max(map_data.le_Sector))    
+                mycolors = linear_cmap(field_name='le_Sector', palette=Spectral11[::-1], low=min(all_data.le_Sector) ,high=max(all_data.le_Sector))    
                 my_hover = HoverTool(names=['House'])
                 my_hover.tooltips = [('', '@Neighborhood')]
                 fig.add_tools(my_hover)
@@ -140,7 +144,7 @@ if page == "Map of Ames":
                     fill_color=mycolors, line_color='black',
                     fill_alpha=0.7,
                     name='House',
-                    source=map_data)
+                    source=all_data)
             
 
             # Big Dots for Landmarks, with Hover interactivity
@@ -156,7 +160,7 @@ if page == "Map of Ames":
 
             return fig
 
-        col1.subheader(f'Map data: {map_choice}')
+        col1.write(f'Data: {map_choice}')
         col1.bokeh_chart(bok_layer())
 
         with col1.expander("Sidenote on Distance from Walmart vs YearBuilt"):
@@ -171,22 +175,23 @@ if page == "Map of Ames":
             """)
             st.image(filepath+'/assets/Ames.png')
 
-    #---------------------------------------------
-    # Section 2
+#------------------------------------------------------------------------------------------------------
+# Page 2 City Sector EDA
+elif page == "City Sectors":
     with st.container():
-        st.title('EDA with City Sector')
+        st.title('EDA with City Sectors')
         col1, col2 = st.columns([3, 1]) #Set Columns
         sns.set_palette('gist_earth')
 
         # percentage of houseClass in each Sector of city
-        stack_data = map_data.groupby(['Sector'])['MSSubClass'].value_counts(normalize=True).to_frame()
+        stack_data = all_data.groupby(['Sector'])['MSSubClass'].value_counts(normalize=True).to_frame()
         stack_data.rename(columns={'MSSubClass':'HouseType'}, inplace=True)
         stack_data.reset_index(inplace=True)
         stack_data = stack_data.pivot(index='MSSubClass',columns='Sector', values='HouseType')
 
-        test = col2.radio("Overlay:", ('SalePrice', 'YearBuilt', 'OverallQual'))
+        overlay_choice = col2.radio("Overlay Data:", ('SalePrice', 'YearBuilt', 'OverallQual'))
 
-        col1.pyplot(plot_stacked(stack_data))
+        col1.pyplot(plot_stacked(stack_data, overlay_choice))
 
         with col1.expander("HouseType Comparisons"):
             st.write("""
@@ -194,13 +199,17 @@ if page == "Map of Ames":
             """)
             st.image(filepath+'/assets/HouseType.png')
 
-elif page == "P2":
-    # Display details of page 2
-    st.title('Page 2')
-
 elif page == "P3":
     # Display details of page 2
     st.title('Page 3')
+
+elif page == "P4":
+    # Display details of page 2
+    st.title('Page 4')
+
+elif page == "P5":
+    # Display details of page 2
+    st.title('Page 5')
 
 elif page == "Collaborators":
     # Display details of page 2
