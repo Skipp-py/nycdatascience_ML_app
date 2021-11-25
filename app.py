@@ -217,7 +217,8 @@ elif page == "P3":
     selected = st.selectbox(
          'Choose a feature:',
          ('Fireplaces', 'FireplaceQu', 'GarageCars', 'CentralAir', 'HeatingQC', 'OverallQual',))
-    fig = px.scatter(graph_data,x='GrLivArea',y='SalePrice',facet_col=selected,color=selected,trendline='ols')
+    fig = px.scatter(graph_data,x='GrLivArea',y='SalePrice',facet_col=selected,color=selected,trendline='ols',width=900, height=500,
+        title = 'Sale Price vs. GrLivArea by ' + selected)
     st.plotly_chart(fig)
   
 elif page == "P4":
