@@ -199,6 +199,11 @@ elif page == "City Sectors":
             """)
             st.image(filepath+'/assets/HouseType.png')
 
+        with col1.expander("Price per SF Analysis"):
+            st.image(filepath+'/assets/PperSF.png')
+            st.write("Price per SF drops as house size increases in all Sectors, but most pronounced in SE, NO, & DT.")
+            st.write("The phenomenon is only seen in Split, Duplex or 2 Family houses.")
+
 elif page == "P3":
     # Display details of page 2
     st.title('Page 3')
@@ -213,7 +218,7 @@ elif page == "P5":
 
 elif page == "Collaborators":
     # Display details of page 2
-    st.title('Team Members')
+    st.title('Collaborators')
     st.subheader('Daniel Nie')
     st.subheader('David Kressley')
     st.subheader('Karl Lundquist')
