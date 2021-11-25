@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 import numpy as np
+import pickle
 import plotly.express as px
 
 import matplotlib.pyplot as plt
@@ -92,10 +93,12 @@ def plot_stacked(s_data, overlay=None, all_data=all_data):
     sns.stripplot(ax=ax2, x='Sector', y=overlay, data=all_data, order=sec_order, color='0.6', edgecolor='k', linewidth=0.5)
     return fig
 
+pkl_model = pickle.load(open(filepath+'/assets/APP_model.pkl', 'rb'))
+
 #=======================================================================================================
 # Navigation
 st.sidebar.image(filepath+'/assets/App_Logo.jpg', use_column_width=True) 
-page = st.sidebar.radio("Navigation", ["Map of Ames", "City Sectors", "P3", "P4", "P5", "Collaborators"]) 
+page = st.sidebar.radio("Navigation", ["Map of Ames", "City Sectors", "P3", "P4", "MODEL", "Collaborators"]) 
 
 #------------------------------------------------------------------------------------------------------
 # Page1: Map of Ames, IA
@@ -208,8 +211,9 @@ elif page == "City Sectors":
             st.write("Price per SF drops as house size increases in all Sectors, but most pronounced in SE, NO, & DT.")
             st.write("The phenomenon is only seen in Split, Duplex or 2 Family houses.")
 
+#------------------------------------------------------------------------------------------------------
+# Page 3 Feature Plots
 elif page == "P3":
-    # Display details of page 2
     st.title('Feature selection')
 
     data_load_state = st.text('Loading data...')
@@ -222,15 +226,26 @@ elif page == "P3":
     st.plotly_chart(fig)
   
 elif page == "P4":
-    # Display details of page 2
+    # Display details of page 4
     st.title('Page 4')
 
-elif page == "P5":
-    # Display details of page 2
-    st.title('Page 5')
+#------------------------------------------------------------------------------------------------------
+# Page 4 Modeling
+elif page == "MODEL":
+    with st.container():
+        st.title('Renovation Model Test')
+        col1, col2, col3 = st.columns([1, 1, 1]) #Set Columns
+        #------Set Base Prediction House---------
+        sec_select = col1.selectbox('Select Sector',['Downtown','South','West','South East','North','North West'])
+        sec_mapper = {'Downtown':'DT','South':'SO','West':'WE','South East':'SE','North':'NO','North West':'NW'}
+        model_sec = sec_mapper[sec_select]
 
+        model_neib = col2.radio('Select Neighborhood',all_data.loc[all_data.Sector==model_sec]['Neighborhood'].unique())
+
+
+#------------------------------------------------------------------------------------------------------
+# Page 5 About Page
 elif page == "Collaborators":
-    # Display details of page 2
     st.title('Collaborators')
     st.subheader('Daniel Nie')
     st.subheader('David Kressley')
