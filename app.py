@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.express as px
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -201,7 +202,19 @@ elif page == "City Sectors":
 
 elif page == "P3":
     # Display details of page 2
-    st.title('Page 3')
+    st.title('Feature selection')
+    def load_data():
+        data = pd.read_csv(filepath+'/assets/cleaned_data.csv', index_col='PID')
+        return data
+
+    data_load_state = st.text('Loading data...')
+    graph_data = load_data()
+    selected = st.selectbox(
+         'Choose a feature:',
+         ('Fireplaces', 'FireplaceQu', 'GarageCars'))
+    fig = px.scatter(graph_data,x='GrLivArea',y='SalePrice',facet_col=selected,color=selected,trendline='ols')
+    st.plotly_chart(fig)
+    st.write('You selected:', selected)
 
 elif page == "P4":
     # Display details of page 2
