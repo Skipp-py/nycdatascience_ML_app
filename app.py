@@ -313,7 +313,10 @@ elif page == "Renovation Model":
         col_rpx.subheader(f'**${num_format(pkl_renoprice)}**')
         col_rpx.caption('Renovated House Price')
 
-        col_rpx.markdown(f'### **${num_format(pkl_renoprice - pkl_baseprice)}**')
+        # Added metric
+        percent_change = round((((pkl_renoprice - pkl_baseprice)/pkl_baseprice)*100),2)
+        # col_rpx.markdown(f'### **${num_format(pkl_renoprice - pkl_baseprice)}**')
+        col_rpx.metric(label='',value='${0}'.format(num_format(pkl_renoprice - pkl_baseprice)),delta='{0}%'.format(percent_change))
         col_rpx.caption('Difference')
 
 #------------------------------------------------------------------------------------------------------
