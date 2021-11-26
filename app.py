@@ -339,7 +339,22 @@ elif page == "Renovation Model":
 # Page 5 About Page
 elif page == "Collaborators":
     st.title('Collaborators')
-    st.subheader('Daniel Nie')
-    st.subheader('David Kressley')
-    st.subheader('Karl Lundquist')
-    st.subheader('Tony Pennoyer')
+    with st.container():
+        col1, col2, col3 = st.columns([2,1,7])
+        col1.subheader('Daniel Nie')
+        col2.markdown('#### [Github](https://github.com/dnie44)')
+        col3.markdown('#### [LinkedIn](https://www.linkedin.com/in/danielnie/)')
+        col1.subheader('David Kressley')
+        col2.markdown('#### [Github](https://github.com/Skipp-py)')
+        col3.markdown('#### [LinkedIn](https://www.linkedin.com/in/david-kressley-2a4a2194/)')
+        col1.subheader('Karl Lundquist')
+        col2.markdown('#### [Github](https://github.com/klundquist)')
+        col3.markdown('#### [LinkedIn](https://www.linkedin.com/in/karl-lundquist/)')
+        col1.subheader('Tony Pennoyer')
+        col2.markdown('#### [Github](https://github.com/tonypennoyer)')
+        col3.markdown('#### [LinkedIn](https://www.linkedin.com/in/tony-pennoyer-155172123/)')
+    with st.container():
+        col1, col2 = st.columns([4,6])
+        col1.info('We are Machine Learning Fellows at [NYC Data Science Academy]\
+                (https://nycdatascience.com/)')
+        col1.caption('Updated: 11/26/2021')
