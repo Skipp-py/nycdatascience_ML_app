@@ -79,11 +79,12 @@ def load_data(what_data):
     if what_data == 'map_data' :
         data = pd.read_csv(filepath+'/assets/APP_data_all.csv', index_col='PID')
     elif what_data == 'house_data' :
-        data = pd.read_csv(filepath+'/assets/cleaned_data.csv', index_col='PID')
+        data = pd.read_csv(filepath+'/assets/model_data.csv', index_col='PID')
     elif what_data == 'pickle_data' :
         data = pd.read_csv(filepath+'/assets/pickle_base.csv')
     return data
 map_data = load_data('map_data')
+house_data = load_data('house_data')
 pkl_data = load_data('pickle_data')
 
 def plot_stacked(s_data, overlay=None, m_data=map_data):
@@ -108,25 +109,19 @@ def num_format(num):
         new_num += c
     return new_num[::-1]
 
-def pkl_dum_encode_nbr(base_data, code):
-    # Encodes the neighborhood selected with 1, all other dummy columns are set to 0
-    target = 'Neighborhood_'+code
-    neigh_cols = list(base_data.filter(regex='^Neigh').columns)
-    base_data.loc[0,neigh_cols] = 0
-    if target in neigh_cols:
-        neigh_cols.remove(target)
+def pkl_dum_encode(base_data, code, feat):
+    # Encodes the feature selected with '1', all other dummy columns are set to '0'
+    reg_text = '^'+feat
+    target = feat+code
+    feat_cols = list(base_data.filter(regex=reg_text).columns)
+    base_data.loc[0,feat_cols] = 0
+    if target in feat_cols:
+        feat_cols.remove(target)
         base_data.loc[0,target] = 1
     return base_data
 
-def pkl_dum_encode_type(base_data, code):
-    # Encodes the HouseType selected with 1, all other dummy columns are set to 0
-    target = 'MSSubClass_'+code
-    type_cols = list(base_data.filter(regex='^MSSub').columns)
-    base_data.loc[0,type_cols] = 0
-    if target in type_cols:
-        type_cols.remove(target)
-        base_data.loc[0,target] = 1
-    return base_data
+basehouse_medians = house_data.groupby(['Neighborhood','MSSubClass']).agg('median')
+
 # =============================================================================
 
 #=======================================================================================================
@@ -251,12 +246,11 @@ elif page == "House Features":
     st.title('Feature selection')
 
     data_load_state = st.text('Loading data...')
-    graph_data = load_data('house_data')
     selected = st.selectbox(
          'Choose a feature:',
-         ('Fireplaces', 'FireplaceQu', 'GarageCars', 'CentralAir', 'HeatingQC', 'OverallQual',))
-    fig = px.scatter(graph_data,x='GrLivArea',y='SalePrice',facet_col=selected,color=selected,trendline='ols',width=900, height=500,
-        title = 'Sale Price vs. GrLivArea by ' + selected)
+         ('KitchenQual','BsmtCond','FireplaceQu', 'GarageCars', 'CentralAir', 'HeatingQC',))
+    fig = px.scatter(house_data,x='GoodLivArea',y='SalePrice',facet_col=selected,color=selected,trendline='ols',width=900, height=500,
+        title = 'Sale Price vs. GoodLivArea by ' + selected)
     st.plotly_chart(fig)
   
 elif page == "P4":
@@ -285,30 +279,52 @@ elif page == "Renovation Model":
 
         sec_select = col_main.selectbox('Select Sector',['Downtown','South','West','South East','North','North West'])
         sec_mapper = {'Downtown':'DT','South':'SO','West':'WE','South East':'SE','North':'NO','North West':'NW'}
+        hstype_mapper = {'1Fl':'1-Story House','2Fl':'2-Story House', '1FlPUD':'1-Story Townhouse',
+                            '2FlPUD':'2-Story Townhouse','SPLIT':'Split Foyer','DUP2FAM':'Duplex or 2-Family'}
         model_sec = sec_mapper[sec_select]
         model_neib = col_main.radio('Select Neighborhood',map_data.loc[map_data.Sector==model_sec]['Neighborhood'].unique())
-        pkl_basehouse = pkl_dum_encode_nbr(pkl_basehouse, model_neib)
+        pkl_basehouse = pkl_dum_encode(pkl_basehouse, model_neib, 'Neighborhood_')
 
-        model_htype = col_main.radio('Select Type of House',map_data.loc[map_data.Neighborhood==model_neib]['MSSubClass'].unique())
-        pkl_basehouse = pkl_dum_encode_type(pkl_basehouse, model_htype)
+        model_hstype = col_main.radio('Select Type of House',map_data.loc[map_data.Neighborhood==model_neib]['MSSubClass'].unique())
+        pkl_basehouse = pkl_dum_encode(pkl_basehouse, model_hstype, 'MSSubClass_')
 
-        # Base House Details
+        # Set & Display Selected Neighborhood and HouseType medians
+        col_main.caption(f'{hstype_mapper[model_hstype]} in {model_neib}')
+        pkl_basehouse['GoodLivArea'] = basehouse_medians.loc[(model_neib, model_hstype)]['GoodLivArea']
+        col_main.caption(f"Median SquareFootage: {num_format(pkl_basehouse['GoodLivArea'][0])}")
+        pkl_basehouse['YearBuilt'] = basehouse_medians.loc[(model_neib, model_hstype)]['YearBuilt']
+        col_main.caption(f"Median Year Built: {str(pkl_basehouse['YearBuilt'][0])}")
+        pkl_basehouse['PorchArea'] = basehouse_medians.loc[(model_neib, model_hstype)]['PorchArea']
+        pkl_basehouse['GarageCars'] = 1
+
+        # BASE HOUSE Details
         base_pool = col_b.radio('Pool',['No', 'Yes'])
         pkl_basehouse['HasPool'] = 0 if base_pool == 'No' else 1
+        base_cAir = col_b.radio('Central Air',['No', 'Yes'])
+        pkl_basehouse['CentralAir_Y'] = 0 if base_cAir == 'No' else 1
+        base_pave = col_b.radio('Paved Driveway',['No', 'Yes'])
+        pkl_basehouse['PavedDrive_Y'] = 0 if base_pave == 'No' else 1
+        base_AGbaths = col_b.slider('Above Ground Bathrooms', 1.0, 5.0, 2.0, 0.5)
+        pkl_basehouse['AllBathAbv'] = base_AGbaths
 
         # Base House MODEL PRICE
-        
         pkl_baseprice = np.floor(10**pkl_model.predict(pkl_basehouse)[0])
         col_bpx.subheader(f'**${num_format(pkl_baseprice)}**')
         col_bpx.caption('Baseline House Price')
 
-        # RENO House Details
+        # RENOVATION Details
         pkl_renohouse = pkl_basehouse.copy()
+        
         reno_pool = col_r.radio('Build Pool',['No', 'Yes'])
-
         pkl_renohouse['HasPool'] = 0 if reno_pool == 'No' else 1
-
-        # RENOV House Details
+        reno_cAir = col_r.radio('Install Central Air',['No', 'Yes'])
+        pkl_renohouse['CentralAir_Y'] = 0 if reno_cAir == 'No' else 1
+        reno_pave = col_r.radio('Pave Driveway',['No', 'Yes'])
+        pkl_renohouse['PavedDrive_Y'] = 0 if reno_pave == 'No' else 1
+        reno_AGbaths = col_r.slider('Build Bathrooms', 0.0, 2.0, 0.0, 0.5)
+        pkl_renohouse['AllBathAbv'] = base_AGbaths + reno_AGbaths
+        
+        # Renovated House PRICE
         pkl_renoprice = np.floor(10**pkl_model.predict(pkl_renohouse)[0])
         col_rpx.subheader(f'**${num_format(pkl_renoprice)}**')
         col_rpx.caption('Renovated House Price')
