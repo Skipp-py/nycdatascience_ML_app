@@ -41,7 +41,7 @@ st.markdown(
     )
 
 #=======================================================================================================
-# Define Functions and Global Variables
+# Define Global Functions and Variables
 filepath = os.getcwd()
 
 def to_mercator(lat, lon):
@@ -84,6 +84,7 @@ def load_data(what_data):
         data = pd.read_csv(filepath+'/assets/pickle_base.csv')
     return data
 map_data = load_data('map_data')
+pkl_data = load_data('pickle_data')
 
 def plot_stacked(s_data, overlay=None, m_data=map_data):
     sec_order=['NW','SO','WE','SE','NO','DT']
@@ -95,6 +96,7 @@ def plot_stacked(s_data, overlay=None, m_data=map_data):
     sns.stripplot(ax=ax2, x='Sector', y=overlay, data=m_data, order=sec_order, color='0.6', edgecolor='k', linewidth=0.5)
     return fig
 
+# ========Modeling Functions===================================================
 pkl_model = pickle.load(open(filepath+'/assets/APP_model.pkl', 'rb'))
 
 def num_format(num):
@@ -106,10 +108,31 @@ def num_format(num):
         new_num += c
     return new_num[::-1]
 
+def pkl_dum_encode_nbr(base_data, code):
+    # Encodes the neighborhood selected with 1, all other dummy columns are set to 0
+    target = 'Neighborhood_'+code
+    neigh_cols = list(base_data.filter(regex='^Neigh').columns)
+    base_data.loc[0,neigh_cols] = 0
+    if target in neigh_cols:
+        neigh_cols.remove(target)
+        base_data.loc[0,target] = 1
+    return base_data
+
+def pkl_dum_encode_type(base_data, code):
+    # Encodes the HouseType selected with 1, all other dummy columns are set to 0
+    target = 'MSSubClass_'+code
+    type_cols = list(base_data.filter(regex='^MSSub').columns)
+    base_data.loc[0,type_cols] = 0
+    if target in type_cols:
+        type_cols.remove(target)
+        base_data.loc[0,target] = 1
+    return base_data
+# =============================================================================
+
 #=======================================================================================================
 # Navigation
 st.sidebar.image(filepath+'/assets/App_Logo.jpg', use_column_width=True) 
-page = st.sidebar.radio("Navigation", ["Map of Ames", "City Sectors", "P3", "P4", "MODEL", "Collaborators"]) 
+page = st.sidebar.radio("Navigation", ["Map of Ames", "City Sectors", "House Features", "P4", "Renovation Model", "Collaborators"]) 
 
 #------------------------------------------------------------------------------------------------------
 # Page1: Map of Ames, IA
@@ -224,7 +247,7 @@ elif page == "City Sectors":
 
 #------------------------------------------------------------------------------------------------------
 # Page 3 Feature Plots
-elif page == "P3":
+elif page == "House Features":
     st.title('Feature selection')
 
     data_load_state = st.text('Loading data...')
@@ -242,10 +265,10 @@ elif page == "P4":
 
 #------------------------------------------------------------------------------------------------------
 # Page 4 Modeling
-elif page == "MODEL":
+elif page == "Renovation Model":
     with st.container():
         st.title('Renovation Model Test')
-        col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([2,1,2,2,2,2]) #Set Columns
+        col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([2,0.5,2,2,2,2]) #Set Columns
         col_main.markdown('#### ***Select:***')
         col_main.markdown('##### Location & Type of House')
         col_b.markdown('#### ** * **')
@@ -254,21 +277,27 @@ elif page == "MODEL":
         col_r.markdown('##### Renovation')
     
     with st.container():
-        col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([2,1,2,2,2,2]) #Set Columns
+        col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([2,0.5,2,2,2,2]) #Set Columns
 
         #------Set Base Prediction House---------
         # Location & Type of House
+        pkl_basehouse = pkl_data.copy()
+
         sec_select = col_main.selectbox('Select Sector',['Downtown','South','West','South East','North','North West'])
         sec_mapper = {'Downtown':'DT','South':'SO','West':'WE','South East':'SE','North':'NO','North West':'NW'}
         model_sec = sec_mapper[sec_select]
         model_neib = col_main.radio('Select Neighborhood',map_data.loc[map_data.Sector==model_sec]['Neighborhood'].unique())
-        model_htype = col_main.radio('Select House Style',map_data.loc[map_data.Neighborhood==model_neib]['MSSubClass'].unique())
+        pkl_basehouse = pkl_dum_encode_nbr(pkl_basehouse, model_neib)
+
+        model_htype = col_main.radio('Select Type of House',map_data.loc[map_data.Neighborhood==model_neib]['MSSubClass'].unique())
+        pkl_basehouse = pkl_dum_encode_type(pkl_basehouse, model_htype)
 
         # Base House Details
         base_pool = col_b.radio('Pool',['No', 'Yes'])
+        pkl_basehouse['HasPool'] = 0 if base_pool == 'No' else 1
 
         # Base House MODEL PRICE
-        pkl_basehouse = load_data('pickle_data')
+        
         pkl_baseprice = np.floor(10**pkl_model.predict(pkl_basehouse)[0])
         col_bpx.subheader(f'**${num_format(pkl_baseprice)}**')
         col_bpx.caption('Baseline House Price')
