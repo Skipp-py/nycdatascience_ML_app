@@ -7,11 +7,12 @@ import plotly.express as px
 
 import matplotlib.pyplot as plt
 import seaborn as sns
-from bokeh.plotting import figure, show
-from bokeh.tile_providers import get_provider, CARTODBPOSITRON_RETINA, STAMEN_TONER, STAMEN_TERRAIN
-from bokeh.models import HoverTool, FreehandDrawTool, BoxEditTool, ColumnDataSource, ColorBar
+from bokeh.plotting import figure
+from bokeh.tile_providers import get_provider, CARTODBPOSITRON_RETINA
+from bokeh.models import HoverTool, ColumnDataSource, ColorBar, CustomJS, DataTable, TableColumn, HTMLTemplateFormatter
 from bokeh.palettes import Plasma10, Spectral11
 from bokeh.transform import linear_cmap
+from streamlit_bokeh_events import streamlit_bokeh_events
 
 #=======================================================================================================
 # App CSS theme-ing
@@ -74,6 +75,27 @@ marks = pd.DataFrame(landmarks)
 
 Ames_center = to_mercator(42.034534, -93.620369)
 
+# Misc Map Settings
+background = get_provider(CARTODBPOSITRON_RETINA)
+# Mapper Function
+def bok_fig(w=940, h=700, box_select=False):
+    # Base Map Layer
+    if not box_select:
+        fig = figure(plot_width=w, plot_height=h,
+                    x_range=(Ames_center[0]-8000, Ames_center[0]+3000), 
+                    y_range=(Ames_center[1]-8000, Ames_center[1]+5000),
+                    x_axis_type="mercator", y_axis_type="mercator",
+                    title="Ames Iowa Housing Map")
+    else:
+        fig = figure(plot_width=w, plot_height=h,
+                    x_range=(Ames_center[0]-8000, Ames_center[0]+3000), 
+                    y_range=(Ames_center[1]-8000, Ames_center[1]+5000),
+                    x_axis_type="mercator", y_axis_type="mercator",
+                    title="Ames Iowa Housing Map",
+                    tools="box_select", active_drag="box_select")
+    fig.add_tile(background)
+    return fig
+
 @st.cache
 def load_data(what_data):
     if what_data == 'map_data' :
@@ -127,7 +149,8 @@ basehouse_medians = house_data.groupby(['Neighborhood','MSSubClass']).agg('media
 #=======================================================================================================
 # Navigation
 st.sidebar.image(filepath+'/assets/App_Logo.jpg', use_column_width=True) 
-page = st.sidebar.radio("Navigation", ["Map of Ames", "City Sectors", "House Features", "P4", "Renovation Model", "Collaborators"]) 
+page = st.sidebar.radio("Navigation", ["Map of Ames", "City Sectors", "House Features", 
+                        "Feature Engineering","House Selector", "Renovation Model", "Collaborators"]) 
 
 #------------------------------------------------------------------------------------------------------
 # Page1: Map of Ames, IA
@@ -136,40 +159,27 @@ if page == "Map of Ames":
         st.title('Map of Ames')
         col1, col2 = st.columns([3, 1]) #Set Columns
 
-        # Misc Map Settings
-        background = get_provider(STAMEN_TERRAIN)
-
         # Sidebar Radio Button
         # For selecting map plot
         map_choice = col2.radio("Choose Map:", ('SalePrice', 'Neighborhood', 'Sector'))
 
-        # Mapper Function
-        def bok_fig():
-            # Base Map Layer
-            fig = figure(plot_width=940, plot_height=700,
-                        x_range=(Ames_center[0]-8000, Ames_center[0]+3000), 
-                        y_range=(Ames_center[1]-8000, Ames_center[1]+5000),
-                        x_axis_type="mercator", y_axis_type="mercator",
-                        title="Ames Iowa Housing Map")
-            fig.add_tile(background)
-            return fig
-
         def bok_layer(map_choice = map_choice, fig = bok_fig()):
             # Set map data, hover tool, and color palette
             if map_choice == 'SalePrice':
-                mycolors = linear_cmap(field_name='SalePrice', palette=Plasma10[::-1], low=min(map_data.SalePrice) ,high=max(map_data.SalePrice))
+                mycolors = linear_cmap(field_name='SalePrice', palette=Spectral11, low=min(map_data.SalePrice) ,high=max(map_data.SalePrice))
                 color_bar = ColorBar(color_mapper=mycolors['transform'], width=8,  location=(0,0),title="Price $(thousands)")
                 fig.add_layout(color_bar, 'right')
                 my_hover = HoverTool(names=['House'])
                 my_hover.tooltips = [('Price', '@SalePrice')]
                 fig.add_tools(my_hover)
+                
             elif map_choice == 'Neighborhood':
-                mycolors = linear_cmap(field_name='le_Neighbor', palette=Spectral11[::-1], low=min(map_data.le_Neighbor) ,high=max(map_data.le_Neighbor))
+                mycolors = linear_cmap(field_name='le_Neighbor', palette=Spectral11, low=min(map_data.le_Neighbor) ,high=max(map_data.le_Neighbor))
                 my_hover = HoverTool(names=['House'])
                 my_hover.tooltips = [('', '@Neighborhood')]
                 fig.add_tools(my_hover)
             else:
-                mycolors = linear_cmap(field_name='le_Sector', palette=Spectral11[::-1], low=min(map_data.le_Sector) ,high=max(map_data.le_Sector))    
+                mycolors = linear_cmap(field_name='le_Sector', palette=Spectral11, low=min(map_data.le_Sector) ,high=max(map_data.le_Sector))    
                 my_hover = HoverTool(names=['House'])
                 my_hover.tooltips = [('', '@Neighborhood')]
                 fig.add_tools(my_hover)
@@ -177,8 +187,8 @@ if page == "Map of Ames":
             # Dots for Houses
             fig.circle(x="x_merc", y="y_merc",
                     size=7,
-                    fill_color=mycolors, line_color='black',
-                    fill_alpha=0.7,
+                    fill_color=mycolors, line_color='black', line_width=0.5,
+                    fill_alpha=0.8,
                     name='House',
                     source=map_data)
             
@@ -188,8 +198,8 @@ if page == "Map of Ames":
             my_hover.tooltips = [('', '@landmarks')]
             fig.circle(x="x_merc", y="y_merc",
                     size=18,
-                    fill_color="dodgerblue", line_color='dodgerblue',
-                    fill_alpha=0.4,
+                    fill_color="pink", line_color='red',
+                    fill_alpha=0.8,
                     name='landmark',
                     source=marks)
             fig.add_tools(my_hover)
@@ -252,13 +262,80 @@ elif page == "House Features":
     fig = px.scatter(house_data,x='GoodLivArea',y='SalePrice',facet_col=selected,color=selected,trendline='ols',width=900, height=500,
         title = 'Sale Price vs. GoodLivArea by ' + selected)
     st.plotly_chart(fig)
-  
-elif page == "P4":
-    # Display details of page 4
-    st.title('Page 4')
 
 #------------------------------------------------------------------------------------------------------
-# Page 4 Modeling
+# Page 4 Feature Engineering
+elif page == "Feature Engineering":
+    st.title('Feature Engineering')
+
+
+elif page == "House Selector":
+#------------------------------------------------------------------------------------------------------
+# Page 5 House Selection
+    with st.container():
+        col1, col2 = st.columns([2, 2]) #Set Columns
+        col1.title('House Selector Map')
+
+        sec_select = col1.selectbox('Select Sector',['Downtown','South','West','South East','North','North West'])
+        sec_mapper = {'Downtown':'DT','South':'SO','West':'WE','South East':'SE','North':'NO','North West':'NW'}
+        model_sec = sec_mapper[sec_select]
+        model_neib = col1.radio('Select Neighborhood',map_data.loc[map_data.Sector==model_sec]['Neighborhood'].unique())
+
+        address_df = map_data.loc[(map_data['Sector']==model_sec) & 
+            (map_data['Neighborhood']==model_neib)]
+        
+        def box_layer(fig = bok_fig(600,500,True)):
+            # Set map data, hover tool, and color palette
+            mycolors = linear_cmap(field_name='SalePrice', palette=Spectral11, low=min(map_data.SalePrice) ,high=max(map_data.SalePrice))
+            my_hover = HoverTool(names=['House'])
+            my_hover.tooltips = [('Sector', '@Sector'), ('Neighborhood', '@Neighborhood')]
+            fig.add_tools(my_hover)
+            # Dots for Houses
+            fig.circle(x="x_merc", y="y_merc",
+                    size=7,
+                    fill_color=mycolors, line_color='black', line_width=0.5,
+                    fill_alpha=0.8,
+                    name='House',
+                    source=address_df)
+            return fig
+        col2.bokeh_chart(box_layer())
+
+        source = ColumnDataSource(address_df)
+        template = """
+            <div style="font-weight: 600; 
+                color: black"> 
+            <%= value %>
+            </div>
+            """
+        formatter = HTMLTemplateFormatter(template=template)
+        columns = [TableColumn(field="Prop_Addr", title="House Address", formatter=formatter)]
+
+        mytable = DataTable(source=source, columns=columns)
+
+        # define events
+        source.selected.js_on_change("indices",
+            CustomJS(args=dict(source=source),
+            code="""
+            document.dispatchEvent(
+            new CustomEvent("INDEX_SELECT", {detail: {data: source.selected.indices}})
+            )
+            """)
+            )
+
+        result = streamlit_bokeh_events(
+            bokeh_plot=mytable, 
+            events="INDEX_SELECT", 
+            key="House", 
+            refresh_on_update=True, 
+            debounce_time=1, 
+            override_height=400)
+        if result:
+            if result.get("INDEX_SELECT"):
+                col1.write(address_df.iloc[result.get("INDEX_SELECT")["data"],13])
+                basehouse_PIN = address_df.index.values[result.get("INDEX_SELECT")["data"]][0]
+
+#------------------------------------------------------------------------------------------------------
+# Page 6 Modeling
 elif page == "Renovation Model":
     with st.container():
         st.title('Renovation Model Test')
@@ -336,7 +413,7 @@ elif page == "Renovation Model":
         col_rpx.caption('Difference')
 
 #------------------------------------------------------------------------------------------------------
-# Page 5 About Page
+# Page 7 About Page
 elif page == "Collaborators":
     st.title('Collaborators')
     with st.container():
