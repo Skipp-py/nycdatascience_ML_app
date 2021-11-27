@@ -80,12 +80,16 @@ def load_data(what_data):
         data = pd.read_csv(filepath+'/assets/APP_data_all.csv', index_col='PID')
     elif what_data == 'house_data' :
         data = pd.read_csv(filepath+'/assets/model_data.csv', index_col='PID')
+    elif what_data == 'page_3_data' :
+        data = pd.read_csv(filepath+'/assets/page_3_data.csv', index_col='PID')
     elif what_data == 'pickle_data' :
         data = pd.read_csv(filepath+'/assets/pickle_base.csv')
     return data
+
 map_data = load_data('map_data')
 house_data = load_data('house_data')
 pkl_data = load_data('pickle_data')
+page_3_data = load_data('page_3_data')
 
 def plot_stacked(s_data, overlay=None, m_data=map_data):
     sec_order=['NW','SO','WE','SE','NO','DT']
@@ -270,7 +274,7 @@ elif page == "House Features":
     fig = px.scatter(page_3_data,x='GoodLivArea',y='SalePrice',facet_col=pick,color=pick,trendline='ols',width=900, height=500,
     title = 'Sale Price vs. GoodLivArea by ' + pick, category_orders={pick : st.session_state.category_order})
     st.plotly_chart(fig)
-    
+
 elif page == "P4":
     # Display details of page 4
     st.title('Page 4')
