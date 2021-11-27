@@ -296,7 +296,7 @@ elif page == "House Selector":
 # Page 5 House Selection
     with st.container():
         col1, col2 = st.columns([2, 2]) #Set Columns
-        col1.title('House Selector Map')
+        col1.title('House Selector')
 
         sec_select = col1.selectbox('Select Sector',['Downtown','South','West','South East','North','North West'])
         sec_mapper = {'Downtown':'DT','South':'SO','West':'WE','South East':'SE','North':'NO','North West':'NW'}
@@ -353,8 +353,10 @@ elif page == "House Selector":
             override_height=400)
         if result:
             if result.get("INDEX_SELECT"):
+                col1.write('Selection:')
                 col1.write(address_df.iloc[result.get("INDEX_SELECT")["data"],13])
                 basehouse_PIN = address_df.index.values[result.get("INDEX_SELECT")["data"]][0]
+        col1.subheader('Click on House Address Below')
 
 #------------------------------------------------------------------------------------------------------
 # Page 6 Modeling
