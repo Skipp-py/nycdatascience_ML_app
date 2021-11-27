@@ -7,3 +7,4 @@ pandas==1.2.4
 streamlit==1.2.0
 plotly==5.4.0
 statsmodels==0.13.0
+streamlit_bokeh_events
