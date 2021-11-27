@@ -33,7 +33,7 @@ st.markdown(
     .reportview-container .css-ng1t4o {{
         color: #FFFFFF;
         background-color: #042A37;
-        width: 250px;
+        width: 320px;
         padding-top: 3rem;
     }}
 </style>
@@ -105,7 +105,7 @@ def load_data(what_data):
     elif what_data == 'page_3_data' :
         data = pd.read_csv(filepath+'/assets/page_3_data.csv', index_col='PID')
     elif what_data == 'pickle_data' :
-        data = pd.read_csv(filepath+'/assets/pickle_base.csv')
+        data = pd.read_csv(filepath+'/assets/pickle_base.csv', index_col='PID')
     return data
 
 map_data = load_data('map_data')
@@ -124,7 +124,7 @@ def plot_stacked(s_data, overlay=None, m_data=map_data):
     return fig
 
 # ========Modeling Functions===================================================
-pkl_model = pickle.load(open(filepath+'/assets/APP_model.pkl', 'rb'))
+pkl_model = pickle.load(open(filepath+'/assets/APP_model_CBR.pkl', 'rb'))
 
 def num_format(num):
     # converts any int/float to human readable string with thousandth commas
@@ -146,6 +146,7 @@ def pkl_dum_encode(base_data, code, feat):
         base_data.loc[0,target] = 1
     return base_data
 
+basehouse_PIN = 535454150
 basehouse_medians = house_data.groupby(['Neighborhood','MSSubClass']).agg('median')
 
 # =============================================================================
@@ -154,7 +155,20 @@ basehouse_medians = house_data.groupby(['Neighborhood','MSSubClass']).agg('media
 # Navigation
 st.sidebar.image(filepath+'/assets/App_Logo.jpg', use_column_width=True) 
 page = st.sidebar.radio("Navigation", ["Map of Ames", "City Sectors", "House Features", 
-                        "Feature Engineering","House Selector", "Renovation Model", "Collaborators"]) 
+                        "Feature Engineering", "Renovation Model", "Collaborators"]) 
+
+#=======================================================================================================
+# Sidebar House Selector
+with st.sidebar.container():
+    st.sidebar.title('Model House')
+
+    sec_select = st.sidebar.selectbox('Select Sector',['Downtown','South','West','South East','North','North West'])
+    sec_mapper = {'Downtown':'DT','South':'SO','West':'WE','South East':'SE','North':'NO','North West':'NW'}
+    model_sec = sec_mapper[sec_select]
+    model_neib = st.sidebar.radio('Select Neighborhood',map_data.loc[map_data.Sector==model_sec]['Neighborhood'].unique())
+
+    address_df = map_data.loc[(map_data['Sector']==model_sec) & 
+        (map_data['Neighborhood']==model_neib)]
 
 #------------------------------------------------------------------------------------------------------
 # Page1: Map of Ames, IA
@@ -291,79 +305,12 @@ elif page == "Feature Engineering":
     st.title('Feature Engineering')
 
 
-elif page == "House Selector":
-#------------------------------------------------------------------------------------------------------
-# Page 5 House Selection
-    with st.container():
-        col1, col2 = st.columns([2, 2]) #Set Columns
-        col1.title('House Selector')
-
-        sec_select = col1.selectbox('Select Sector',['Downtown','South','West','South East','North','North West'])
-        sec_mapper = {'Downtown':'DT','South':'SO','West':'WE','South East':'SE','North':'NO','North West':'NW'}
-        model_sec = sec_mapper[sec_select]
-        model_neib = col1.radio('Select Neighborhood',map_data.loc[map_data.Sector==model_sec]['Neighborhood'].unique())
-
-        address_df = map_data.loc[(map_data['Sector']==model_sec) & 
-            (map_data['Neighborhood']==model_neib)]
-        
-        def box_layer(fig = bok_fig(600,500,True)):
-            # Set map data, hover tool, and color palette
-            mycolors = linear_cmap(field_name='SalePrice', palette=Spectral11, low=min(map_data.SalePrice) ,high=max(map_data.SalePrice))
-            my_hover = HoverTool(names=['House'])
-            my_hover.tooltips = [('Sector', '@Sector'), ('Neighborhood', '@Neighborhood')]
-            fig.add_tools(my_hover)
-            # Dots for Houses
-            fig.circle(x="x_merc", y="y_merc",
-                    size=7,
-                    fill_color=mycolors, line_color='black', line_width=0.5,
-                    fill_alpha=0.8,
-                    name='House',
-                    source=address_df)
-            return fig
-        col2.bokeh_chart(box_layer())
-
-        source = ColumnDataSource(address_df)
-        template = """
-            <div style="font-weight: 600; 
-                color: black"> 
-            <%= value %>
-            </div>
-            """
-        formatter = HTMLTemplateFormatter(template=template)
-        columns = [TableColumn(field="Prop_Addr", title="House Address", formatter=formatter)]
-
-        mytable = DataTable(source=source, columns=columns)
-
-        # define events
-        source.selected.js_on_change("indices",
-            CustomJS(args=dict(source=source),
-            code="""
-            document.dispatchEvent(
-            new CustomEvent("INDEX_SELECT", {detail: {data: source.selected.indices}})
-            )
-            """)
-            )
-
-        result = streamlit_bokeh_events(
-            bokeh_plot=mytable, 
-            events="INDEX_SELECT", 
-            key="House", 
-            refresh_on_update=True, 
-            debounce_time=1, 
-            override_height=400)
-        if result:
-            if result.get("INDEX_SELECT"):
-                col1.write('Selection:')
-                col1.write(address_df.iloc[result.get("INDEX_SELECT")["data"],13])
-                basehouse_PIN = address_df.index.values[result.get("INDEX_SELECT")["data"]][0]
-        col1.subheader('Click on House Address Below')
-
 #------------------------------------------------------------------------------------------------------
 # Page 6 Modeling
 elif page == "Renovation Model":
     with st.container():
-        st.title('Renovation Model Test')
-        col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([2,0.5,2,2,2,2]) #Set Columns
+        st.title('Renovation Modeler')
+        col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([3,0.3,2,2,2,2]) #Set Columns
         col_main.markdown('#### ***Select:***')
         col_main.markdown('##### Location & Type of House')
         col_b.markdown('#### ** * **')
@@ -372,61 +319,128 @@ elif page == "Renovation Model":
         col_r.markdown('##### Renovation')
     
     with st.container():
-        col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([2,0.5,2,2,2,2]) #Set Columns
+        col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([3,0.3,2,2,2,2]) #Set Columns
 
         #------Set Base Prediction House---------
-        # Location & Type of House
-        pkl_basehouse = pkl_data.copy()
+        #model_sec = sec_mapper[sec_select]
+        #model_neib = col_main.radio('Select Neighborhood',map_data.loc[map_data.Sector==model_sec]['Neighborhood'].unique())
+        #pkl_basehouse = pkl_dum_encode(pkl_basehouse, model_neib, 'Neighborhood_')
 
-        sec_select = col_main.selectbox('Select Sector',['Downtown','South','West','South East','North','North West'])
-        sec_mapper = {'Downtown':'DT','South':'SO','West':'WE','South East':'SE','North':'NO','North West':'NW'}
-        hstype_mapper = {'1Fl':'1-Story House','2Fl':'2-Story House', '1FlPUD':'1-Story Townhouse',
-                            '2FlPUD':'2-Story Townhouse','SPLIT':'Split Foyer','DUP2FAM':'Duplex or 2-Family'}
-        model_sec = sec_mapper[sec_select]
-        model_neib = col_main.radio('Select Neighborhood',map_data.loc[map_data.Sector==model_sec]['Neighborhood'].unique())
-        pkl_basehouse = pkl_dum_encode(pkl_basehouse, model_neib, 'Neighborhood_')
+        #**********************
+        with col_main.container():
 
-        model_hstype = col_main.radio('Select Type of House',map_data.loc[map_data.Neighborhood==model_neib]['MSSubClass'].unique())
-        pkl_basehouse = pkl_dum_encode(pkl_basehouse, model_hstype, 'MSSubClass_')
+            address_df = map_data.loc[(map_data['Sector']==model_sec) & 
+                (map_data['Neighborhood']==model_neib)]
+
+            source = ColumnDataSource(address_df)
+            template = """
+                <div style="font-weight: 600; 
+                    color: black"> 
+                <%= value %>
+                </div>
+                """
+            formatter = HTMLTemplateFormatter(template=template)
+            columns = [TableColumn(field="Prop_Addr", title="House Address", formatter=formatter)]
+
+            # define events
+            source.selected.js_on_change("indices",
+                CustomJS(args=dict(source=source),
+                code="""
+                document.dispatchEvent(
+                new CustomEvent("INDEX_SELECT", {detail: {data: source.selected.indices}})
+                )
+                """)
+                )
+
+            mytable = DataTable(source=source, columns=columns, height=300)
+            result = streamlit_bokeh_events(
+                bokeh_plot=mytable, 
+                events="INDEX_SELECT", 
+                key="House", 
+                refresh_on_update=True, 
+                debounce_time=0,
+                override_height=300)
+
+            if result:
+                if result.get("INDEX_SELECT"):
+                    st.markdown(f'#### **{address_df.iloc[result.get("INDEX_SELECT")["data"],13].values[0]}**')
+                    basehouse_PIN = address_df.index.values[result.get("INDEX_SELECT")["data"]][0]
+            pkl_basehouse = pkl_data.loc[[basehouse_PIN]]
+
+        hstype_mapper = {1:'Duplex or 2-Family', 2:'2-Story Townhouse', 3:'Split Foyer', 
+                        4:'1-Story Townhouse', 5:'1-Story House', 6:'2-Story House'}
+        col_main.caption(f"{hstype_mapper[pkl_basehouse['MSSubClass'].values[0]]} in {model_neib}")
+        col_main.caption(f"Area: {num_format(pkl_basehouse['GoodLivArea'].values[0])} sf (1F + 2F + FinBsmt)")
+        col_main.caption(f"Unfinished Bsmt: {num_format(pkl_basehouse['BsmtUnfSF'].values[0])} sf")
+
+        def box_layer(fig = bok_fig(300,260,True)):
+            # Set map data, hover tool, and color palette
+            mycolors = linear_cmap(field_name='SalePrice', palette=Spectral11, low=min(map_data.SalePrice) ,high=max(map_data.SalePrice))
+            #my_hover = HoverTool(names=['House'])
+            #my_hover.tooltips = [('Price', '@SalePrice')]
+            #fig.add_tools(my_hover)
+            # Dots for Houses
+            fig.circle(x="x_merc", y="y_merc",
+                    size=7,
+                    fill_color=mycolors, line_color='black', line_width=0.5,
+                    fill_alpha=0.8,
+                    name='House',
+                    source=address_df)
+            fig.xaxis.visible = False
+            fig.yaxis.visible = False
+            fig.title.visible = False
+            return fig
+        col_main.bokeh_chart(box_layer())
+        #model_hstype = col_main.radio('Select Type of House',map_data.loc[map_data.Neighborhood==model_neib]['MSSubClass'].unique())
+        #pkl_basehouse = pkl_dum_encode(pkl_basehouse, model_hstype, 'MSSubClass_')
 
         # Set & Display Selected Neighborhood and HouseType medians
-        col_main.caption(f'{hstype_mapper[model_hstype]} in {model_neib}')
-        pkl_basehouse['GoodLivArea'] = basehouse_medians.loc[(model_neib, model_hstype)]['GoodLivArea']
-        col_main.caption(f"Median SquareFootage: {num_format(pkl_basehouse['GoodLivArea'][0])}")
-        pkl_basehouse['YearBuilt'] = basehouse_medians.loc[(model_neib, model_hstype)]['YearBuilt']
-        col_main.caption(f"Median Year Built: {str(pkl_basehouse['YearBuilt'][0])}")
-        pkl_basehouse['PorchArea'] = basehouse_medians.loc[(model_neib, model_hstype)]['PorchArea']
-        pkl_basehouse['GarageCars'] = 1
+        
+        #pkl_basehouse['GoodLivArea'] = basehouse_medians.loc[(model_neib, model_hstype)]['GoodLivArea']
+        #col_main.caption(f"Median SquareFootage: {num_format(pkl_basehouse['GoodLivArea'][0])}")
+        #pkl_basehouse['YearBuilt'] = basehouse_medians.loc[(model_neib, model_hstype)]['YearBuilt']
+        #col_main.caption(f"Median Year Built: {str(pkl_basehouse['YearBuilt'][0])}")
+        #pkl_basehouse['PorchArea'] = basehouse_medians.loc[(model_neib, model_hstype)]['PorchArea']
+        #pkl_basehouse['GarageCars'] = 1
 
-        # BASE HOUSE Details
-        base_pool = col_b.radio('Pool',['No', 'Yes'])
-        pkl_basehouse['HasPool'] = 0 if base_pool == 'No' else 1
-        base_cAir = col_b.radio('Central Air',['No', 'Yes'])
-        pkl_basehouse['CentralAir_Y'] = 0 if base_cAir == 'No' else 1
-        base_pave = col_b.radio('Paved Driveway',['No', 'Yes'])
-        pkl_basehouse['PavedDrive_Y'] = 0 if base_pave == 'No' else 1
-        base_AGbaths = col_b.slider('Above Ground Bathrooms', 1.0, 5.0, 2.0, 0.5)
-        pkl_basehouse['AllBathAbv'] = base_AGbaths
+        pkl_renohouse = pkl_basehouse.copy()
+        # HOUSE RENO Details
+        if pkl_basehouse['HasPool'].values[0] == 0:
+            base_pool = col_b.radio('Pool',['No'])
+            reno_pool = col_r.radio('Build Pool',['No', 'Yes'])
+            pkl_renohouse['HasPool'] = 0 if reno_pool == 'No' else 1
+        else:
+            base_pool = col_b.radio('Pool',['Yes'])
+        #pkl_basehouse['HasPool'] = 0 if base_pool == 'No' else 1
+        if pkl_basehouse['CentralAir'].values[0] == 0:
+            base_cAir = col_b.radio('Central Air',['No'])
+            reno_cAir = col_r.radio('Install Central Air',['No', 'Yes'])
+            pkl_renohouse['CentralAir_Y'] = 0 if reno_cAir == 'No' else 1
+        else:
+            base_cAir = col_b.radio('Central Air',['Yes'])
+        #base_cAir = col_b.radio('Central Air',['No', 'Yes'])
+        #pkl_basehouse['CentralAir_Y'] = 0 if base_cAir == 'No' else 1
+        if pkl_basehouse['PavedDrive'].values[0] == 0:
+            base_pave = col_b.radio('Paved Driveway',['No'])
+            reno_pave = col_r.radio('Pave Driveway',['No', 'Yes'])
+            pkl_renohouse['PavedDrive_Y'] = 0 if reno_pave == 'No' else 1
+        else:
+            base_pave = col_b.radio('Paved Driveway',['Yes'])
+        
+        #base_AGbaths = col_b.slider('Above Ground Bathrooms', 1.0, 5.0, 2.0, 0.5)
+        #pkl_basehouse['AllBathAbv'] = base_AGbaths
+        col_b.write(f"Above Ground Baths: {num_format(pkl_basehouse['AllBathAbv'].values[0])}")
+        reno_AGbaths = col_r.slider('Build Bathrooms', 0.0, 2.0, 0.0, 0.5)
+        pkl_renohouse['AllBathAbv'] = pkl_basehouse['AllBathAbv'].values[0] + reno_AGbaths
 
         # Base House MODEL PRICE
-        pkl_baseprice = np.floor(10**pkl_model.predict(pkl_basehouse)[0])
+        pkl_baseprice = np.floor(pkl_model.predict(pkl_basehouse)[0])
         col_bpx.subheader(f'**${num_format(pkl_baseprice)}**')
         col_bpx.caption('Baseline House Price')
-
-        # RENOVATION Details
-        pkl_renohouse = pkl_basehouse.copy()
-        
-        reno_pool = col_r.radio('Build Pool',['No', 'Yes'])
-        pkl_renohouse['HasPool'] = 0 if reno_pool == 'No' else 1
-        reno_cAir = col_r.radio('Install Central Air',['No', 'Yes'])
-        pkl_renohouse['CentralAir_Y'] = 0 if reno_cAir == 'No' else 1
-        reno_pave = col_r.radio('Pave Driveway',['No', 'Yes'])
-        pkl_renohouse['PavedDrive_Y'] = 0 if reno_pave == 'No' else 1
-        reno_AGbaths = col_r.slider('Build Bathrooms', 0.0, 2.0, 0.0, 0.5)
-        pkl_renohouse['AllBathAbv'] = base_AGbaths + reno_AGbaths
+        col_bpx.caption(f"actual: **${num_format(pkl_basehouse['SalePrice'].values[0])}**")
         
         # Renovated House PRICE
-        pkl_renoprice = np.floor(10**pkl_model.predict(pkl_renohouse)[0])
+        pkl_renoprice = np.floor(pkl_model.predict(pkl_renohouse)[0])
         col_rpx.subheader(f'**${num_format(pkl_renoprice)}**')
         col_rpx.caption('Renovated House Price')
 
