@@ -311,11 +311,8 @@ elif page == "Renovation Model":
     with st.container():
         st.title('Renovation Modeler')
         col_main, col_empty, col_b, col_bpx, col_r, col_rpx = st.columns([3,0.3,2,2,2,2]) #Set Columns
-        col_main.markdown('#### ***Select:***')
-        col_main.markdown('##### Location & Type of House')
-        col_b.markdown('#### ** * **')
-        col_b.markdown('##### Baseline House')
-        col_r.markdown('#### ** * **')
+        col_main.markdown('##### Select House')
+        col_b.markdown('##### Details')
         col_r.markdown('##### Renovation')
     
     with st.container():
@@ -370,8 +367,6 @@ elif page == "Renovation Model":
         hstype_mapper = {1:'Duplex or 2-Family', 2:'2-Story Townhouse', 3:'Split Foyer', 
                         4:'1-Story Townhouse', 5:'1-Story House', 6:'2-Story House'}
         col_main.caption(f"{hstype_mapper[pkl_basehouse['MSSubClass'].values[0]]} in {model_neib}")
-        col_main.caption(f"Area: {num_format(pkl_basehouse['GoodLivArea'].values[0])} sf (1F + 2F + FinBsmt)")
-        col_main.caption(f"Unfinished Bsmt: {num_format(pkl_basehouse['BsmtUnfSF'].values[0])} sf")
 
         def box_layer(fig = bok_fig(300,260,True)):
             # Set map data, hover tool, and color palette
@@ -402,42 +397,71 @@ elif page == "Renovation Model":
         #col_main.caption(f"Median Year Built: {str(pkl_basehouse['YearBuilt'][0])}")
         #pkl_basehouse['PorchArea'] = basehouse_medians.loc[(model_neib, model_hstype)]['PorchArea']
         #pkl_basehouse['GarageCars'] = 1
+        Qual_mapper = {1: 'Fair',2: 'Average', 3: 'Good', 4: 'Excellent'}
 
         pkl_renohouse = pkl_basehouse.copy()
         # HOUSE RENO Details
+        # Above Ground Bathrooms
+        col_b.markdown(f"Bathrooms (abv ground): **{num_format(pkl_basehouse['AllBathAbv'].values[0])}**")
+        reno_AGbaths = col_r.slider('Build Bathrooms', 0.0, 2.0, 0.0, 0.5)
+        pkl_renohouse['AllBathAbv'] = pkl_basehouse['AllBathAbv'].values[0] + reno_AGbaths
+
+        # Kitchen Quality
+        col_b.markdown(f"Kitchen Quality: **{Qual_mapper[pkl_basehouse['KitchenQual'].values[0]]}**")
+        reno_Kitchen = col_r.radio('Remodel Kitchen',['No', 'Yes'])
+        if reno_Kitchen == 'Yes':
+            pkl_renohouse['KitchenQual'] = 4
+
+        # Basement Condition
+        col_b.markdown(f"Basement Condition: **{Qual_mapper[pkl_basehouse['BsmtCond'].values[0]]}**")
+        reno_Bsmt = col_r.radio('Remodel Basement',['No', 'Yes'])
+        if reno_Bsmt == 'Yes':
+            pkl_renohouse['BsmtCond'] = 4 
+        reno_FinBsmt = col_r.radio('Finish Basement',['No', 'Yes'])
+        if reno_FinBsmt == 'Yes':
+            pkl_renohouse['GoodLivArea'] = pkl_renohouse['GoodLivArea'] + pkl_renohouse['BsmtUnfSF']
+            pkl_renohouse['BsmtUnfSF'] = 0
+
+        # Garage Quality
+        col_b.markdown(f"Garage Quality: **{Qual_mapper[pkl_basehouse['GarageQual'].values[0]]}**")
+        reno_Garage = col_r.radio('Remodel Garage',['No', 'Yes'])
+        if reno_Garage == 'Yes':
+            pkl_renohouse['GarageQual'] = 4 
+
+        # Pool
         if pkl_basehouse['HasPool'].values[0] == 0:
             base_pool = col_b.radio('Pool',['No'])
             reno_pool = col_r.radio('Build Pool',['No', 'Yes'])
             pkl_renohouse['HasPool'] = 0 if reno_pool == 'No' else 1
         else:
             base_pool = col_b.radio('Pool',['Yes'])
-        #pkl_basehouse['HasPool'] = 0 if base_pool == 'No' else 1
+        
+        # Central Air
         if pkl_basehouse['CentralAir'].values[0] == 0:
             base_cAir = col_b.radio('Central Air',['No'])
             reno_cAir = col_r.radio('Install Central Air',['No', 'Yes'])
             pkl_renohouse['CentralAir_Y'] = 0 if reno_cAir == 'No' else 1
         else:
             base_cAir = col_b.radio('Central Air',['Yes'])
-        #base_cAir = col_b.radio('Central Air',['No', 'Yes'])
-        #pkl_basehouse['CentralAir_Y'] = 0 if base_cAir == 'No' else 1
+        
+        # Paved Driveway
         if pkl_basehouse['PavedDrive'].values[0] == 0:
             base_pave = col_b.radio('Paved Driveway',['No'])
             reno_pave = col_r.radio('Pave Driveway',['No', 'Yes'])
             pkl_renohouse['PavedDrive_Y'] = 0 if reno_pave == 'No' else 1
         else:
             base_pave = col_b.radio('Paved Driveway',['Yes'])
-        
-        #base_AGbaths = col_b.slider('Above Ground Bathrooms', 1.0, 5.0, 2.0, 0.5)
-        #pkl_basehouse['AllBathAbv'] = base_AGbaths
-        col_b.write(f"Above Ground Baths: {num_format(pkl_basehouse['AllBathAbv'].values[0])}")
-        reno_AGbaths = col_r.slider('Build Bathrooms', 0.0, 2.0, 0.0, 0.5)
-        pkl_renohouse['AllBathAbv'] = pkl_basehouse['AllBathAbv'].values[0] + reno_AGbaths
 
         # Base House MODEL PRICE
         pkl_baseprice = np.floor(pkl_model.predict(pkl_basehouse)[0])
         col_bpx.subheader(f'**${num_format(pkl_baseprice)}**')
-        col_bpx.caption('Baseline House Price')
-        col_bpx.caption(f"actual: **${num_format(pkl_basehouse['SalePrice'].values[0])}**")
+        col_bpx.caption('Baseline Price Prediction')
+        col_bpx.write('-------------------------')
+        col_bpx.caption(f"Actual Price: **${num_format(pkl_basehouse['SalePrice'].values[0])}**")
+        col_bpx.caption(f"Area: {num_format(pkl_basehouse['GoodLivArea'].values[0])} sf (1F + 2F + FinBsmt)")
+        col_bpx.caption(f"Unfinished Bsmt: {num_format(pkl_basehouse['BsmtUnfSF'].values[0])} sf")
+        col_bpx.caption(f"Garage Size: {num_format(pkl_basehouse['GarageCars'].values[0])} cars")
+        col_bpx.caption(f"Porch or Deck: {num_format(pkl_basehouse['PorchArea'].values[0])} sf")
         
         # Renovated House PRICE
         pkl_renoprice = np.floor(pkl_model.predict(pkl_renohouse)[0])
