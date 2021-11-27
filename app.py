@@ -245,14 +245,32 @@ elif page == "City Sectors":
 elif page == "House Features":
     st.title('Feature selection')
 
+    if 'category_order' not in st.session_state :
+        st.session_state.category_order = ['Fair','Typical', 'Good','Excellent']
+
     data_load_state = st.text('Loading data...')
-    selected = st.selectbox(
-         'Choose a feature:',
-         ('KitchenQual','BsmtCond','FireplaceQu', 'GarageCars', 'CentralAir', 'HeatingQC',))
-    fig = px.scatter(house_data,x='GoodLivArea',y='SalePrice',facet_col=selected,color=selected,trendline='ols',width=900, height=500,
-        title = 'Sale Price vs. GoodLivArea by ' + selected)
+    pick = st.selectbox(
+         'Select a feature:',
+         ('KitchenQual','BsmtCond','GarageQual', 'PavedDrive', 'CentralAir', 'HeatingQC',))
+
+    if pick == 'KitchenQual' :
+        st.session_state.category_order = ['Fair','Typical', 'Good','Excellent']
+    if pick == 'HeatingQC' :
+        st.session_state.category_order = ['Fair','Typical', 'Good','Excellent']
+    elif pick == 'GarageQual': 
+        st.session_state.category_order = ['No Garage', 'Fair', 'Typical', 'Good']
+    elif pick == 'BsmtCond' : 
+        st.session_state.category_order = ['No Basement', 'Fair', 'Typical', 'Good']
+    elif pick == 'PavedDrive' :
+        st.session_state.category_order = ['N', 'Y']
+    elif pick == 'CentralAir' :
+        st.session_state.category_order = ['N', 'Y']
+
+    # st.write(st.session_state)
+    fig = px.scatter(page_3_data,x='GoodLivArea',y='SalePrice',facet_col=pick,color=pick,trendline='ols',width=900, height=500,
+    title = 'Sale Price vs. GoodLivArea by ' + pick, category_orders={pick : st.session_state.category_order})
     st.plotly_chart(fig)
-  
+    
 elif page == "P4":
     # Display details of page 4
     st.title('Page 4')
