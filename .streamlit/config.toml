@@ -82,7 +82,7 @@ cookieSecret = "2588b9673647a47474ffa72238a1414cabeae1f5365e6af319e3071fc0ef49b3
 
 # If false, will attempt to open a browser window on start.
 # Default: false unless (1) we are on a Linux box where DISPLAY is unset, or (2) server.liveSave is set.
-headless = false
+headless = true
 
 # Automatically rerun script when the file is modified on disk.
 # Default: false
@@ -94,7 +94,7 @@ runOnSave = false
 
 # The port where the server will listen for browser connections.
 # Default: 8501
-#port = 8501
+port = 8501
 
 # The base path for the URL where Streamlit should be served from.
 # Default: ""
