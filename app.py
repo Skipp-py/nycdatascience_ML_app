@@ -447,13 +447,20 @@ elif page == "Renovation Model":
         pkl_renohouse['AllBathAbv'] = pkl_basehouse['AllBathAbv'].values[0] + reno_AGbaths
 
         # Kitchen Quality
-        col_b.markdown(f"Kitchen Quality: **{Qual_mapper[pkl_basehouse['KitchenQual'].values[0]]}**")
+        try:
+            col_b.markdown(f"Kitchen Quality: **{Qual_mapper[pkl_basehouse['KitchenQual'].values[0]]}**")
+        except:
+            col_b.markdown(f"Kitchen Quality: **None**")
+
         reno_Kitchen = col_r.radio('Remodel Kitchen',['No', 'Yes'])
         if reno_Kitchen == 'Yes':
             pkl_renohouse['KitchenQual'] = 4
 
         # Basement Condition
-        col_b.markdown(f"Basement Condition: **{Qual_mapper[pkl_basehouse['BsmtCond'].values[0]]}**")
+        try:
+            col_b.markdown(f"Basement Condition: **{Qual_mapper[pkl_basehouse['BsmtCond'].values[0]]}**")
+        except:
+            col_b.markdown(f"No Basement")
         reno_Bsmt = col_r.radio('Remodel Basement',['No', 'Yes'])
         if reno_Bsmt == 'Yes':
             pkl_renohouse['BsmtCond'] = 4 
@@ -463,7 +470,10 @@ elif page == "Renovation Model":
             pkl_renohouse['BsmtUnfSF'] = 0
 
         # Garage Quality
-        col_b.markdown(f"Garage Quality: **{Qual_mapper[pkl_basehouse['GarageQual'].values[0]]}**")
+        try:
+            col_b.markdown(f"Garage Quality: **{Qual_mapper[pkl_basehouse['GarageQual'].values[0]]}**")
+        except:
+            col_b.markdown(f"No Garage")
         reno_Garage = col_r.radio('Remodel Garage',['No', 'Yes'])
         if reno_Garage == 'Yes':
             pkl_renohouse['GarageQual'] = 4 
