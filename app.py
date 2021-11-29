@@ -26,16 +26,6 @@ st.markdown(
         padding-left: 2rem;
         padding-bottom: 2rem;
     }}
-    .reportview-container .main {{
-        color: #FFFFFF;
-        background-color: #042A37;
-    }}
-    .reportview-container .css-ng1t4o {{
-        color: #FFFFFF;
-        background-color: #042A37;
-        width: 320px;
-        padding-top: 3rem;
-    }}
 </style>
 """,
         unsafe_allow_html=True,
@@ -74,6 +64,35 @@ landmarks = {'landmarks':['Iowa State University',
 marks = pd.DataFrame(landmarks)
 
 Ames_center = to_mercator(42.034534, -93.620369)
+
+neib_fullname = {'Blmngtn':'Bloomington Heights',
+       'Blueste':'Bluestem',
+       'BrDale':'Briardale',
+       'BrkSide':'Brookside',
+       'ClearCr':'Clear Creek',
+       'CollgCr':'College Creek',
+       'Crawfor':'Crawford',
+       'Edwards':'Edwards',
+       'Gilbert':'Gilbert',
+       'IDOTRR':'Iowa DOT and Rail Road',
+       'MeadowV':'Meadow Village',
+       'Mitchel':'Mitchell',
+       'NAmes':'North Ames',
+       'NoRidge':'Northridge',
+       'NPkVill':'Northpark Villa',
+       'NridgHt':'Northridge Heights',
+       'NWAmes':'Northwest Ames',
+       'OldTown':'Old Town',
+       'SWISU':'South West of ISU',
+       'Sawyer':'Sawyer',
+       'SawyerW':'Sawyer West',
+       'Somerst':'Somerset',
+       'StoneBr':'Stone Brook',
+       'Timber':'Timberland',
+       'Veenker':'Veenker',
+       'Greens':'Greensboro',
+       'GrnHill':'Greens Hills',
+       'Landmrk':'Landmark Villas'}
 
 # Misc Map Settings
 background = get_provider(CARTODBPOSITRON_RETINA)
@@ -170,6 +189,16 @@ with st.sidebar.container():
     address_df = map_data.loc[(map_data['Sector']==model_sec) & 
         (map_data['Neighborhood']==model_neib)]
 
+    st.sidebar.markdown(f"### {neib_fullname[model_neib]}")
+    try:
+        st.sidebar.markdown(f"1-story house median size: *{num_format(basehouse_medians.loc[(model_neib,'1Fl')]['GoodLivArea'])}* sf \
+                        \n 1-story house median price: *${num_format(basehouse_medians.loc[(model_neib,'1Fl')]['SalePrice'])}*")
+    except: pass
+    try:
+        st.sidebar.markdown(f"2-story house median size: *{num_format(basehouse_medians.loc[(model_neib,'2Fl')]['GoodLivArea'])}* sf \
+                        \n 2-story house median price: *${num_format(basehouse_medians.loc[(model_neib,'2Fl')]['SalePrice'])}*")
+    except: pass
+
 #------------------------------------------------------------------------------------------------------
 # Page1: Map of Ames, IA
 if page == "Map of Ames":
@@ -238,6 +267,13 @@ if page == "Map of Ames":
                 City Sectors from The Ames Convention & Visitors Bureau
             """)
             st.image(filepath+'/assets/Ames.png')
+
+        with col1.expander("K-means Classifier results"):
+            st.write("""
+                Elbow Plot and Set K=6
+            """)
+            st.image(filepath+'/assets/K_means_elbow.png')
+            st.image(filepath+'/assets/K_means_map.png')
 
 #------------------------------------------------------------------------------------------------------
 # Page 2 City Sector EDA
@@ -458,10 +494,10 @@ elif page == "Renovation Model":
         col_bpx.caption('Baseline Price Prediction')
         col_bpx.write('-------------------------')
         col_bpx.caption(f"Actual Price: **${num_format(pkl_basehouse['SalePrice'].values[0])}**")
-        col_bpx.caption(f"Area: {num_format(pkl_basehouse['GoodLivArea'].values[0])} sf (1F + 2F + FinBsmt)")
-        col_bpx.caption(f"Unfinished Bsmt: {num_format(pkl_basehouse['BsmtUnfSF'].values[0])} sf")
-        col_bpx.caption(f"Garage Size: {num_format(pkl_basehouse['GarageCars'].values[0])} cars")
-        col_bpx.caption(f"Porch or Deck: {num_format(pkl_basehouse['PorchArea'].values[0])} sf")
+        col_bpx.markdown(f"Livable Space: **{num_format(pkl_basehouse['GoodLivArea'].values[0])}** sf")
+        col_bpx.markdown(f"Unfinished Bsmt: **{num_format(pkl_basehouse['BsmtUnfSF'].values[0])}** sf")
+        col_bpx.markdown(f"Garage Size: **{num_format(pkl_basehouse['GarageCars'].values[0])}** cars")
+        col_bpx.markdown(f"Porch or Deck: **{num_format(pkl_basehouse['PorchArea'].values[0])}** sf")
         
         # Renovated House PRICE
         pkl_renoprice = np.floor(pkl_model.predict(pkl_renohouse)[0])
