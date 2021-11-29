@@ -26,9 +26,9 @@ st.markdown(
         padding-left: 2rem;
         padding-bottom: 2rem;
     }}
-    .reportview-container .css-ng1t4o {{
-        width: 250px;
-        padding-top: 3rem;
+    .reportview-container .css-q1v5jq {{
+        width: 310px;
+        padding-top: 1rem;
     }}
 </style>
 """,
