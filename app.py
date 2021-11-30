@@ -177,8 +177,7 @@ basehouse_medians = house_data.groupby(['Neighborhood','MSSubClass']).agg('media
 #=======================================================================================================
 # Navigation
 st.sidebar.image(filepath+'/assets/App_Logo.jpg', use_column_width=True) 
-page = st.sidebar.radio("Navigation", ["Map of Ames", "City Sectors", "House Features", 
-                        "Feature Engineering", "Renovation Model", "Collaborators"]) 
+page = st.sidebar.radio("Navigation", ["Map of Ames", "City Sectors", "House Features", "Renovation Model", "Collaborators"]) 
 
 #=======================================================================================================
 # Sidebar House Selector
@@ -340,9 +339,9 @@ elif page == "House Features":
     st.plotly_chart(fig)
 
 #------------------------------------------------------------------------------------------------------
-# Page 4 Feature Engineering
-elif page == "Feature Engineering":
-    st.title('Feature Engineering')
+# # Page 4 Feature Engineering
+# elif page == "Feature Engineering":
+#     st.title('Feature Engineering')
 
 
 #------------------------------------------------------------------------------------------------------
